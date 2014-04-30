@@ -1,0 +1,39 @@
+{
+  "name": "google-nacl",
+  "version": "1.0.0",
+  "description": "Google Native Client runtime for Node.js",
+  "main": "demo.js",
+  "scripts": {
+    "test": "npm test",
+    "install": "node-gyp rebuild"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/justmoon/node-google-nacl.git"
+  },
+  "keywords": [
+    "sandbox",
+    "runtime",
+    "sel_ldr",
+    "native",
+    "client",
+    "nacl",
+    "pnacl",
+    "srpc",
+    "imc"
+  ],
+  "os": [
+    "linux"
+  ],
+  "author": "Stefan Thomas <justmoon@members.fsf.org>",
+  "license": "ISC",
+  "gypfile": true,
+  "bugs": {
+    "url": "https://github.com/justmoon/node-google-nacl/issues"
+  },
+  "homepage": "https://github.com/justmoon/node-google-nacl",
+  "dependencies": {
+    "nan": "~0.8.0",
+    "bindings": "~1.2.0"
+  }
+}
