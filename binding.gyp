@@ -1,13 +1,13 @@
 {
   'variables': {
-    'NACL_ROOT%': '../nacl_root/'
+    'NACL_ROOT%': '/opt/nacl_root/'
   },
   'targets': [
     {
       'target_name': 'sel_ldr_proxy',
       'sources': [ 'src/sel_ldr_proxy.cc' ],
       'libraries': [
-        '-L../<(NACL_ROOT)/native_client/scons-out/opt-linux-x86-32/lib/',
+        '-L<(NACL_ROOT)/native_client/scons-out/opt-linux-x86-32/lib/',
         '-lnonnacl_util',
         '-lnrd_xfer',
         '-lnacl_base_shared',
