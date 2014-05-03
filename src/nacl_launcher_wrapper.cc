@@ -57,6 +57,8 @@ void NaClLauncherWrapper::Init(Handle<Object> exports) {
       FunctionTemplate::New(Start)->GetFunction());
   tpl->PrototypeTemplate()->Set(String::NewSymbol("getServices"),
       FunctionTemplate::New(GetServices)->GetFunction());
+  tpl->PrototypeTemplate()->Set(String::NewSymbol("setupAppChannel"),
+      FunctionTemplate::New(SetupAppChannel)->GetFunction());
   tpl->PrototypeTemplate()->Set(String::NewSymbol("setupReverseService"),
       FunctionTemplate::New(SetupReverseService)->GetFunction());
   constructor = Persistent<Function>::New(tpl->GetFunction());
@@ -113,9 +115,9 @@ NAN_METHOD(NaClLauncherWrapper::GetServices) {
     case CHANNEL_COMMAND:
       selected_channel = &obj->command_channel_;
       break;
-    /*case CHANNEL_APP:
-      selected_channel = ^obj->app_channel_;
-      break;*/
+    case CHANNEL_APP:
+      selected_channel = &obj->app_channel_;
+      break;
     default:
       return NanThrowError("NaClLauncherWrapper::GetServices: Invalid channel");
   }
@@ -143,6 +145,18 @@ NAN_METHOD(NaClLauncherWrapper::GetServices) {
   }
 
   NanReturnValue(srpc_methods);
+}
+
+NAN_METHOD(NaClLauncherWrapper::SetupAppChannel) {
+  NanScope();
+
+  NaClLauncherWrapper* obj = ObjectWrap::Unwrap<NaClLauncherWrapper>(args.This());
+
+  if (!obj->launcher_.SetupAppChannel(&obj->app_channel_)) {
+    return NanThrowError("NaClLauncherWrapper::SetupAppChannel: set up app channel failed");
+  }
+
+  NanReturnValue(Boolean::New(true));
 }
 
 NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {

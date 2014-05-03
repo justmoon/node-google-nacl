@@ -28,6 +28,7 @@ class NaClLauncherWrapper : public node::ObjectWrap {
   static NAN_METHOD(New);
   static NAN_METHOD(Start);
   static NAN_METHOD(GetServices);
+  static NAN_METHOD(SetupAppChannel);
   static NAN_METHOD(SetupReverseService);
   static v8::Persistent<v8::Function> constructor;
 
@@ -35,6 +36,7 @@ class NaClLauncherWrapper : public node::ObjectWrap {
   nacl::DescWrapperFactory factory_;
 
   NaClSrpcChannel command_channel_;
+  NaClSrpcChannel app_channel_;
   nacl::ReverseService *reverse_service_;
 };
 
