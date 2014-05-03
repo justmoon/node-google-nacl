@@ -12,38 +12,14 @@
 #include "native_client/src/trusted/desc/nacl_desc_wrapper.h"
 #include "native_client/src/trusted/nonnacl_util/sel_ldr_launcher.h"
 
+#include "nacl_launcher_wrapper.h"
+
 namespace {
 
 using v8::Handle;
 using v8::Object;
+using v8::FunctionTemplate;
 using nacl::DescWrapper;
-
-class DummyLauncher : public nacl::SelLdrLauncherBase {
- public:
-  explicit DummyLauncher(NaClHandle channel) {
-    channel_ = channel;
-  }
-
-  virtual bool Start(const char *url) {
-    UNREFERENCED_PARAMETER(url);
-    return true;
-  }
-};
-
-class PathSelLdrLocator : public nacl::SelLdrLocator {
-public:
-  explicit PathSelLdrLocator(std::string path) : path_(path) { }
-
-  virtual void GetDirectory(char* buffer, size_t len) {
-    if (path_.size() >= len) {
-      return;
-    }
-    strncpy(buffer, path_.c_str(), len);
-  }
-
-private:
-  const std::string path_;
-};
 
 void Initialize(Handle<Object> target) {
   NaClSrpcModuleInit();
@@ -99,15 +75,9 @@ void Initialize(Handle<Object> target) {
     return;
   }
 
-  std::string signature = "getNum::i";
-  const uint32_t rpc_num = NaClSrpcServiceMethodIndex(command_channel.client,
-                                                      signature.c_str());
-
-  NaClLog(LOG_ERROR, "RPC Num: %i\n", rpc_num);
-
   NaClSrpcServicePrint(channel.client);
 
-  int ret, kernel;
+  int ret;
 
   if (NACL_SRPC_RESULT_OK !=
       NaClSrpcInvokeBySignature(&channel, "int:i:i", 5, &ret)) {
@@ -116,13 +86,11 @@ void Initialize(Handle<Object> target) {
   }
   NaClLog(LOG_INFO, "RPC call succeeded with status: %d\n", ret);
 
+  NaClLauncherWrapper::Init(target);
 
   // don't need to be read-only, only used by the JS shim
   //target->Set(NanSymbol("AF_UNIX"), Integer::New(AF_UNIX));
   //target->Set(NanSymbol("SOCK_DGRAM"), Integer::New(SOCK_DGRAM));
-
-  //target->Set(NanSymbol("socket"),
-  //            FunctionTemplate::New(Socket)->GetFunction());
 
   //target->Set(NanSymbol("bind"),
   //            FunctionTemplate::New(Bind)->GetFunction());
