@@ -1,15 +1,16 @@
-var binding = require('bindings')('sel_ldr_proxy.node');
+var binding = require('bindings')('sel_ldr_proxy.node'),
+    NaClLauncherWrapper = binding.NaClLauncherWrapper;
 
 
-console.log(binding.NaClLauncherWrapper);
+console.log(NaClLauncherWrapper);
 
-var launcher = new binding.NaClLauncherWrapper("srpc_test_nonbrowser.nexe");
+var launcher = new NaClLauncherWrapper("srpc_test_nonbrowser.nexe");
 console.log(launcher.start());
-console.log(launcher.getServices());
+console.log(launcher.getServices(NaClLauncherWrapper.CHANNEL_COMMAND));
 console.log(launcher.setupReverseService());
 
 
-var launcher = new binding.NaClLauncherWrapper("types_srpc_test.nexe");
+var launcher = new NaClLauncherWrapper("types_srpc_test.nexe");
 console.log(launcher.start());
-console.log(launcher.getServices());
+console.log(launcher.getServices(NaClLauncherWrapper.CHANNEL_COMMAND));
 console.log(launcher.setupReverseService());

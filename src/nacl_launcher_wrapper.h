@@ -14,6 +14,11 @@ class NaClLauncherWrapper : public node::ObjectWrap {
  public:
   static void Init(v8::Handle<v8::Object> exports);
 
+  enum {
+    CHANNEL_COMMAND,
+    CHANNEL_APP,
+    CHANNEL_REVERSE
+  };
  private:
   explicit NaClLauncherWrapper();
   ~NaClLauncherWrapper();

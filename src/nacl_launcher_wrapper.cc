@@ -25,22 +25,22 @@ void NaClLauncherWrapper::LoadNexe(std::string nexe_name) {
   std::vector<nacl::string> app_argv;
 
   if (!launcher_.StartViaCommandLine(command_prefix, sel_ldr_argv, app_argv)) {
-    NaClLog(LOG_FATAL, "sel_ldr_proxy: Failed to launch sel_ldr\n");
+    NaClLog(LOG_FATAL, "NaClLauncherWrapper::LoadNexe: Failed to launch sel_ldr\n");
   }
 
   if (!launcher_.SetupCommand(&command_channel_)) {
-    NaClLog(LOG_ERROR, "sel_ldr_proxy: set up command failed\n");
+    NaClLog(LOG_ERROR, "NaClLauncherWrapper::LoadNexe: set up command failed\n");
     return;
   }
   
   nacl::DescWrapper *host_file = factory_.OpenHostFile(nexe_name.c_str(), O_RDONLY, 0);
   if (NULL == host_file) {
-    NaClLog(LOG_ERROR, "sel_ldr_proxy: could not open %s\n", nexe_name.c_str());
+    NaClLog(LOG_ERROR, "NaClLauncherWrapper::LoadNexe: could not open %s\n", nexe_name.c_str());
     return;
   }
 
   if (!launcher_.LoadModule(&command_channel_, host_file)) {
-    NaClLog(LOG_ERROR, "sel_ldr_proxy: load module failed\n");
+    NaClLog(LOG_ERROR, "NaClLauncherWrapper::LoadNexe: load module failed\n");
     return;
   }
   
@@ -60,6 +60,10 @@ void NaClLauncherWrapper::Init(Handle<Object> exports) {
   tpl->PrototypeTemplate()->Set(String::NewSymbol("setupReverseService"),
       FunctionTemplate::New(SetupReverseService)->GetFunction());
   constructor = Persistent<Function>::New(tpl->GetFunction());
+
+  constructor->Set(NanSymbol("CHANNEL_COMMAND"), Integer::New(CHANNEL_COMMAND));
+  constructor->Set(NanSymbol("CHANNEL_APP"), Integer::New(CHANNEL_APP));
+  constructor->Set(NanSymbol("CHANNEL_REVERSE"), Integer::New(CHANNEL_REVERSE));
   exports->Set(String::NewSymbol("NaClLauncherWrapper"), constructor);
 }
 
@@ -69,7 +73,7 @@ NAN_METHOD(NaClLauncherWrapper::New) {
   if (args.IsConstructCall()) {
     // Invoked as constructor: `new NaClLauncherWrapper(...)`
     if (args[0]->IsUndefined()) {
-      return NanThrowError("Missing parameter: nexe");
+      return NanThrowError("NaClLauncherWrapper::New: missing parameter: nexe");
     }
     String::Utf8Value nexeName(args[0]->ToString());
     NaClLauncherWrapper* obj = new NaClLauncherWrapper();
@@ -90,7 +94,7 @@ NAN_METHOD(NaClLauncherWrapper::Start) {
   NaClLauncherWrapper* obj = ObjectWrap::Unwrap<NaClLauncherWrapper>(args.This());
 
   if (!obj->launcher_.StartModule(&obj->command_channel_)) {
-    return NanThrowError("NaClLauncherWrapper: launcher#StartModule failed");
+    return NanThrowError("NaClLauncherWrapper::Start: launcher#StartModule failed");
   }
 
   NanReturnValue(Boolean::New(true));
@@ -99,9 +103,24 @@ NAN_METHOD(NaClLauncherWrapper::Start) {
 NAN_METHOD(NaClLauncherWrapper::GetServices) {
   NanScope();
 
+  int channel = (args[0]->IsUndefined()) ? (int) CHANNEL_COMMAND : args[0]->IntegerValue();
+
   NaClLauncherWrapper* obj = ObjectWrap::Unwrap<NaClLauncherWrapper>(args.This());
 
-  uint32_t method_count = NaClSrpcServiceMethodCount(obj->command_channel_.client);
+  NaClSrpcChannel *selected_channel;
+
+  switch (channel) {
+    case CHANNEL_COMMAND:
+      selected_channel = &obj->command_channel_;
+      break;
+    /*case CHANNEL_APP:
+      selected_channel = ^obj->app_channel_;
+      break;*/
+    default:
+      return NanThrowError("NaClLauncherWrapper::GetServices: Invalid channel");
+  }
+
+  uint32_t method_count = NaClSrpcServiceMethodCount(selected_channel->client);
   Handle<Array> srpc_methods = Array::New(method_count);
 
   // Loop over SRPC methods
@@ -111,13 +130,13 @@ NAN_METHOD(NaClLauncherWrapper::GetServices) {
     const char* input_types;
     const char* output_types;
 
-    retval = NaClSrpcServiceMethodNameAndTypes(obj->command_channel_.client,
+    retval = NaClSrpcServiceMethodNameAndTypes(selected_channel->client,
                                                i,
                                                &method_name,
                                                &input_types,
                                                &output_types);
     if (!retval) {
-      return NanThrowError("NaClLauncherWrapper#getServices: launcher#StartModule failed");
+      return NanThrowError("NaClLauncherWrapper::GetServices: launcher#StartModule failed");
     }
     
     srpc_methods->Set(i, String::New(method_name));
@@ -138,13 +157,13 @@ NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {
                                 &h);
   
   if (NACL_SRPC_RESULT_OK != rpc_result) {
-    return NanThrowError("NaClLauncherWrapper#setupReverseService: SRPC call to reverse_setup failed");
+    return NanThrowError("NaClLauncherWrapper::SetupReverseService: SRPC call to reverse_setup failed");
   }
   
   // Make a nacl::DescWrapper* from the NaClDesc*
   nacl::scoped_ptr<nacl::DescWrapper> conn_cap(obj->launcher_.WrapCleanup(h));
   if (conn_cap == NULL) {
-    return NanThrowError("NaClLauncherWrapper#setupReverseService: reverse desc wrap failed");
+    return NanThrowError("NaClLauncherWrapper::SetupReverseService: reverse desc wrap failed");
   }
   
   // The implementation of the ReverseInterface is our emulator class.
