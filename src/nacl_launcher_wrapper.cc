@@ -150,7 +150,7 @@ NAN_METHOD(NaClLauncherWrapper::GetServices) {
                                                &input_types,
                                                &output_types);
     if (!retval) {
-      return NanThrowError("NaClLauncherWrapper::GetServices: launcher#StartModule failed");
+      return NanThrowError("NaClLauncherWrapper::GetServices: NaClSrpcServiceMethodNameAndTypes failed");
     }
     
     Handle<Array> rpc_desc = Array::New(3);
@@ -206,6 +206,12 @@ NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {
                                                    reverse_interface->Ref());
 
   reverse_interface.release();
+  conn_cap.release();
+
+  // Starts the RPC handler for the reverse interface.
+  if (!obj->reverse_service_->Start()) {
+    return NanThrowError("NaClLauncherWrapper::SetupReverseService: reverse service start failed");
+  }
 
   NanReturnValue(Boolean::New(true));
 }
