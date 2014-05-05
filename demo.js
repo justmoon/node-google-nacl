@@ -9,10 +9,12 @@ console.log(launcher.start());
 console.log(launcher.setupAppChannel());
 console.log(launcher.getServices(NaClLauncherWrapper.CHANNEL_COMMAND));
 console.log(launcher.getServices(NaClLauncherWrapper.CHANNEL_APP));
+
+console.log(launcher.invoke(NaClLauncherWrapper.CHANNEL_APP, "int:i:i", 15));
 console.log(launcher.setupReverseService());
 
 
 var launcher = new NaClLauncherWrapper("types_srpc_test.nexe");
 console.log(launcher.start());
 console.log(launcher.getServices(NaClLauncherWrapper.CHANNEL_COMMAND));
-console.log(launcher.setupReverseService());
+//console.log(launcher.setupReverseService());

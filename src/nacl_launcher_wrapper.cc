@@ -9,6 +9,16 @@
 #include "native_client/src/trusted/desc/nrd_all_modules.h"
 #include "native_client/src/trusted/desc/nacl_desc_wrapper.h"
 
+#define THROW_ERROR_PRINTF(message_tpl, ...) {\
+    char message[999];\
+    snprintf(message,\
+             sizeof(message),\
+             message_tpl,\
+             __VA_ARGS__);\
+    return NanThrowError(message);\
+  }
+
+
 using namespace v8;
 
 Persistent<Function> NaClLauncherWrapper::constructor;
@@ -61,6 +71,8 @@ void NaClLauncherWrapper::Init(Handle<Object> exports) {
       FunctionTemplate::New(SetupAppChannel)->GetFunction());
   tpl->PrototypeTemplate()->Set(String::NewSymbol("setupReverseService"),
       FunctionTemplate::New(SetupReverseService)->GetFunction());
+  tpl->PrototypeTemplate()->Set(String::NewSymbol("invoke"),
+      FunctionTemplate::New(Invoke)->GetFunction());
   constructor = Persistent<Function>::New(tpl->GetFunction());
 
   constructor->Set(NanSymbol("CHANNEL_COMMAND"), Integer::New(CHANNEL_COMMAND));
@@ -77,9 +89,9 @@ NAN_METHOD(NaClLauncherWrapper::New) {
     if (args[0]->IsUndefined()) {
       return NanThrowError("NaClLauncherWrapper::New: missing parameter: nexe");
     }
-    String::Utf8Value nexeName(args[0]->ToString());
+    String::Utf8Value nexe_name(args[0]->ToString());
     NaClLauncherWrapper* obj = new NaClLauncherWrapper();
-    obj->LoadNexe(*nexeName);
+    obj->LoadNexe(*nexe_name);
     obj->Wrap(args.This());
     return args.This();
   } else {
@@ -141,7 +153,12 @@ NAN_METHOD(NaClLauncherWrapper::GetServices) {
       return NanThrowError("NaClLauncherWrapper::GetServices: launcher#StartModule failed");
     }
     
-    srpc_methods->Set(i, String::New(method_name));
+    Handle<Array> rpc_desc = Array::New(3);
+    rpc_desc->Set(0, String::New(method_name));
+    rpc_desc->Set(1, String::New(input_types));
+    rpc_desc->Set(2, String::New(output_types));
+
+    srpc_methods->Set(i, rpc_desc);
   }
 
   NanReturnValue(srpc_methods);
@@ -191,4 +208,114 @@ NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {
   reverse_interface.release();
 
   NanReturnValue(Boolean::New(true));
+}
+
+void BuildArgVec(NaClSrpcArg* argv[], NaClSrpcArg arg[], size_t count) {
+  for (size_t i = 0; i < count; ++i) {
+    NaClSrpcArgCtor(&arg[i]);
+    argv[i] = &arg[i];
+  }
+  argv[count] = NULL;
+}
+
+NAN_METHOD(NaClLauncherWrapper::Invoke) {
+  NanScope();
+
+  int channel = args[0]->IntegerValue();
+  String::Utf8Value rpc_signature(args[1]->ToString());
+
+  NaClLauncherWrapper* obj = ObjectWrap::Unwrap<NaClLauncherWrapper>(args.This());
+
+  NaClSrpcChannel *selected_channel;
+
+  switch (channel) {
+    case CHANNEL_COMMAND:
+      selected_channel = &obj->command_channel_;
+      break;
+    case CHANNEL_APP:
+      selected_channel = &obj->app_channel_;
+      break;
+    default:
+      return NanThrowError("NaClLauncherWrapper::Invoke: Invalid channel");
+  }
+
+  uint32_t rpc_num = NaClSrpcServiceMethodIndex(selected_channel->client,
+                                                *rpc_signature);
+  if (rpc_num == kNaClSrpcInvalidMethodIndex) {
+    THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: SRPC method '%s' not found", *rpc_signature);
+  }
+
+  const char* rpc_name;
+  const char* arg_types;
+  const char* ret_types;
+
+  if (!NaClSrpcServiceMethodNameAndTypes(selected_channel->client,
+                                         rpc_num,
+                                         &rpc_name,
+                                         &arg_types,
+                                         &ret_types)) {
+    THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: Unable to determine name and types for method %s (%d)", *rpc_signature, rpc_num);
+  }
+
+  NaClSrpcArg  in[NACL_SRPC_MAX_ARGS];
+  NaClSrpcArg* inv[NACL_SRPC_MAX_ARGS + 1];
+
+  BuildArgVec(inv, in, strlen(arg_types));
+
+  int i = 0;
+  while (arg_types[i]) {
+    char type = arg_types[i];
+    NaClSrpcArg* arg = inv[i];
+    switch (type) {
+      case NACL_SRPC_ARG_TYPE_BOOL:
+        arg->tag = NACL_SRPC_ARG_TYPE_BOOL;
+        arg->u.bval = args[i+2]->BooleanValue();
+        break;
+      case NACL_SRPC_ARG_TYPE_INT:
+        arg->tag = NACL_SRPC_ARG_TYPE_INT;
+        arg->u.ival = args[i+2]->Int32Value();
+        break;
+      default:
+        THROW_ERROR_PRINTF("NaClLauncherWrapper:Invoke: SRPC method requires unsupported argument type %c", type);
+    }
+    i++;
+  }
+
+  NaClSrpcArg  out[NACL_SRPC_MAX_ARGS];
+  NaClSrpcArg* outv[NACL_SRPC_MAX_ARGS + 1];
+
+  BuildArgVec(outv, out, strlen(ret_types));
+
+  i = 0;
+  while (ret_types[i]) {
+    char type = arg_types[i];
+    NaClSrpcArg* arg = outv[i];
+    switch (type) {
+      case NACL_SRPC_ARG_TYPE_INT:
+        arg->tag = NACL_SRPC_ARG_TYPE_INT;
+        arg->u.ival = 0;
+        break;
+    }
+    i++;
+  }
+
+  const  NaClSrpcError result = NaClSrpcInvokeV(
+    selected_channel, rpc_num, inv, outv);
+
+  if (NACL_SRPC_RESULT_OK != result) {
+    THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: RPC call failed: %s", NaClSrpcErrorString(result));
+  }
+
+  i = 0;
+  Handle<Array> return_values = Array::New(strlen(ret_types));
+  while (ret_types[i]) {
+    NaClSrpcArg* arg = outv[i];
+    switch (arg->tag) {
+      case NACL_SRPC_ARG_TYPE_INT:
+        return_values->Set(i, Number::New(arg->u.ival));
+        break;
+    }
+    i++;
+  }
+  NanReturnValue(return_values);
 }

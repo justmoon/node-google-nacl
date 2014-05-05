@@ -30,6 +30,7 @@ class NaClLauncherWrapper : public node::ObjectWrap {
   static NAN_METHOD(GetServices);
   static NAN_METHOD(SetupAppChannel);
   static NAN_METHOD(SetupReverseService);
+  static NAN_METHOD(Invoke);
   static v8::Persistent<v8::Function> constructor;
 
   nacl::SelLdrLauncherStandalone launcher_;
