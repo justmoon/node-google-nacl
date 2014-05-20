@@ -1,12 +1,13 @@
 #ifndef NODE_GOOGLE_NACL_REVERSE_EMULATE_H
 #define NODE_GOOGLE_NACL_REVERSE_EMULATE_H
 
+#include <nan.h>
 #include "native_client/src/trusted/reverse_service/reverse_service.h"
 
 // Mock of ReverseInterface for use by nexes.
 class ReverseEmulate : public nacl::ReverseInterface {
 public:
-  ReverseEmulate();
+  ReverseEmulate(NanCallback *ledger_entry_callback);
   virtual ~ReverseEmulate();
   
   // Startup handshake
@@ -24,9 +25,18 @@ public:
   
   // Send a string as a PostMessage to the browser.
   virtual void DoPostMessage(nacl::string message);
-  
+
+  // Read ripple ledger.
+  virtual bool ReadRippleLedger(nacl::string ledger_hash,
+                                nacl::string* ledger_data);
+
+  // Request ripple ledger entry.
+  virtual void RippleLedgerEntry(nacl::string ledger_hash);
+
 private:
   NaClMutex mu_;
+
+  NanCallback *ledger_entry_callback_;
 };
 
 #endif

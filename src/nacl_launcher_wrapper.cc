@@ -9,6 +9,8 @@
 #include "native_client/src/trusted/desc/nrd_all_modules.h"
 #include "native_client/src/trusted/desc/nacl_desc_wrapper.h"
 
+#include "native_client/src/trusted/sel_universal/parsing.h"
+
 #define THROW_ERROR_PRINTF(message_tpl, ...) {\
     char message[999];\
     snprintf(message,\
@@ -20,6 +22,12 @@
 
 
 using namespace v8;
+using v8::Function;
+using v8::Local;
+using v8::Null;
+using v8::Number;
+using v8::Value;
+//using v8::String;
 
 Persistent<Function> NaClLauncherWrapper::constructor;
 
@@ -198,8 +206,14 @@ NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {
   }
   
   // The implementation of the ReverseInterface is our emulator class.
-  nacl::scoped_ptr<ReverseEmulate> reverse_interface(new ReverseEmulate());
+  if (args[0]->IsUndefined()) {
+    return NanThrowError("NaClLauncherWrapper::SetupReverseService: missing parameter: ledger_entry_callback");
+  }
   
+  Local<Function> callbackHandle = args[0].As<Function>();
+  NanCallback *ledger_entry_callback = new NanCallback(callbackHandle);
+  nacl::scoped_ptr<ReverseEmulate> reverse_interface(new ReverseEmulate(ledger_entry_callback));
+
   // Create an instance of ReverseService, which connects to the socket
   // address and exports the services from our emulator.
   obj->reverse_service_ = new nacl::ReverseService(conn_cap.get(),
@@ -268,6 +282,10 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
 
   BuildArgVec(inv, in, strlen(arg_types));
 
+  printf ("%s\n", *rpc_signature);
+  printf ("arg_types: %d\n", strlen(arg_types));
+  printf ("ret_types: %d\n", strlen(ret_types));
+
   int i = 0;
   while (arg_types[i]) {
     char type = arg_types[i];
@@ -280,6 +298,16 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
       case NACL_SRPC_ARG_TYPE_INT:
         arg->tag = NACL_SRPC_ARG_TYPE_INT;
         arg->u.ival = args[i+2]->Int32Value();
+        break;
+      case NACL_SRPC_ARG_TYPE_STRING:
+        arg->tag = NACL_SRPC_ARG_TYPE_STRING;
+        size_t count;
+        arg->arrays.str =
+          strdup(NanCString(args[i+2], &count));
+        if (NULL == arg->arrays.str) {
+          NanThrowError("NaClLauncherWrapper:Invoke: string alloc problem");
+        }
+        printf ("rpc string arg: %s\n", arg->arrays.str);
         break;
       default:
         THROW_ERROR_PRINTF("NaClLauncherWrapper:Invoke: SRPC method requires unsupported argument type %c", type);
@@ -294,17 +322,23 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
 
   i = 0;
   while (ret_types[i]) {
-    char type = arg_types[i];
+    char type = ret_types[i];
     NaClSrpcArg* arg = outv[i];
     switch (type) {
       case NACL_SRPC_ARG_TYPE_INT:
         arg->tag = NACL_SRPC_ARG_TYPE_INT;
         arg->u.ival = 0;
         break;
+      case NACL_SRPC_ARG_TYPE_STRING:
+        arg->tag = NACL_SRPC_ARG_TYPE_STRING;
+        arg->arrays.str = strdup("");
+        break;
     }
     i++;
   }
 
+  printf ("NaClSrpcInvokeV\n"); 
+  fflush(stdout);
   const  NaClSrpcError result = NaClSrpcInvokeV(
     selected_channel, rpc_num, inv, outv);
 
@@ -312,6 +346,8 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
     THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: RPC call failed: %s", NaClSrpcErrorString(result));
   }
 
+  printf ("return array\n");
+  fflush(stdout);
   i = 0;
   Handle<Array> return_values = Array::New(strlen(ret_types));
   while (ret_types[i]) {
@@ -319,6 +355,10 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
     switch (arg->tag) {
       case NACL_SRPC_ARG_TYPE_INT:
         return_values->Set(i, Number::New(arg->u.ival));
+        break;
+      case NACL_SRPC_ARG_TYPE_STRING:
+        arg->tag = NACL_SRPC_ARG_TYPE_STRING;
+        return_values->Set(i, String::New(arg->arrays.str));
         break;
     }
     i++;
