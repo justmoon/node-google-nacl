@@ -22,12 +22,6 @@
 
 
 using namespace v8;
-using v8::Function;
-using v8::Local;
-using v8::Null;
-using v8::Number;
-using v8::Value;
-//using v8::String;
 
 Persistent<Function> NaClLauncherWrapper::constructor;
 
@@ -210,9 +204,12 @@ NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {
     return NanThrowError("NaClLauncherWrapper::SetupReverseService: missing parameter: ledger_entry_callback");
   }
   
+  //Persistent<Function> callbackHandle = Persistent<Function>::New(Handle<Function>::Cast(args[0]));
   Local<Function> callbackHandle = args[0].As<Function>();
   NanCallback *ledger_entry_callback = new NanCallback(callbackHandle);
-  nacl::scoped_ptr<ReverseEmulate> reverse_interface(new ReverseEmulate(ledger_entry_callback));
+  nacl::scoped_ptr<ReverseEmulate> reverse_interface(new ReverseEmulate(ledger_entry_callback,
+                                                                        Isolate::GetCurrent(),
+                                                                        Persistent<Context>::New(Context::GetCurrent())));
 
   // Create an instance of ReverseService, which connects to the socket
   // address and exports the services from our emulator.
@@ -339,15 +336,17 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
 
   printf ("NaClSrpcInvokeV\n"); 
   fflush(stdout);
+
+  //Isolate::GetCurrent()->Exit();
+  NanUnlocker();
   const  NaClSrpcError result = NaClSrpcInvokeV(
     selected_channel, rpc_num, inv, outv);
+  NanLocker();
 
   if (NACL_SRPC_RESULT_OK != result) {
     THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: RPC call failed: %s", NaClSrpcErrorString(result));
   }
 
-  printf ("return array\n");
-  fflush(stdout);
   i = 0;
   Handle<Array> return_values = Array::New(strlen(ret_types));
   while (ret_types[i]) {

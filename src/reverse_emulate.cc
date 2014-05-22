@@ -1,5 +1,5 @@
 #include "reverse_emulate.h"
-
+#include <node.h>
 #include <cstring>
 
 #include "native_client/src/trusted/validator/nacl_file_info.h"
@@ -7,8 +7,12 @@
 
 using namespace v8;
 
-ReverseEmulate::ReverseEmulate(NanCallback *ledger_entry_callback) : 
-    ledger_entry_callback_(ledger_entry_callback) {
+ReverseEmulate::ReverseEmulate(NanCallback *ledger_entry_callback,
+                               Isolate *isolate,
+                               v8::Persistent<v8::Context> context) : 
+    ledger_entry_callback_(ledger_entry_callback),
+    isolate_(isolate),
+    context_(context) {
   NaClLog(1, "ReverseEmulate::ReverseEmulate\n");
   NaClXMutexCtor(&mu_);
 
@@ -68,11 +72,15 @@ bool ReverseEmulate::ReadRippleLedger(nacl::string ledger_hash,
     return false;
   }
 
+  Locker v8Locker(isolate_);
+  Isolate::Scope isolateScope(isolate_);
+  HandleScope handle_scope;
+  Context::Scope context_scope(context_);
+
   if (ledger_entry_callback_!=NULL) {
     Local<Value> argv[] = {
       Local<Value>::New(Null()),
-      //String::New(ledger_hash.c_str())
-      String::New("Hi ReadRippleLedger!")
+      String::New(ledger_hash.c_str())
     };
     ledger_entry_callback_->Call(2, argv); 
   }

@@ -7,7 +7,9 @@
 // Mock of ReverseInterface for use by nexes.
 class ReverseEmulate : public nacl::ReverseInterface {
 public:
-  ReverseEmulate(NanCallback *ledger_entry_callback);
+  ReverseEmulate(NanCallback *ledger_entry_callback,
+                 v8::Isolate *isolate,
+                 v8::Persistent<v8::Context> context);
   virtual ~ReverseEmulate();
   
   // Startup handshake
@@ -37,6 +39,8 @@ private:
   NaClMutex mu_;
 
   NanCallback *ledger_entry_callback_;
+  v8::Isolate *isolate_;
+  v8::Persistent<v8::Context> context_;
 };
 
 #endif
