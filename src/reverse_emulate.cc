@@ -1,5 +1,5 @@
 #include "reverse_emulate.h"
-#include <node.h>
+
 #include <cstring>
 
 #include "native_client/src/trusted/validator/nacl_file_info.h"
@@ -15,13 +15,6 @@ ReverseEmulate::ReverseEmulate(NanCallback *ledger_entry_callback,
     context_(context) {
   NaClLog(1, "ReverseEmulate::ReverseEmulate\n");
   NaClXMutexCtor(&mu_);
-
-  ledger_entry_callback_ = ledger_entry_callback;
-  Local<Value> argv[] = {
-    Local<Value>::New(Null()),
-    String::New("Hi ReverseEmulate constructor!")
-  };
-  ledger_entry_callback_->Call(2, argv);
 }
 
 ReverseEmulate::~ReverseEmulate() {

@@ -279,10 +279,6 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
 
   BuildArgVec(inv, in, strlen(arg_types));
 
-  printf ("%s\n", *rpc_signature);
-  printf ("arg_types: %d\n", strlen(arg_types));
-  printf ("ret_types: %d\n", strlen(ret_types));
-
   int i = 0;
   while (arg_types[i]) {
     char type = arg_types[i];
@@ -304,7 +300,6 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
         if (NULL == arg->arrays.str) {
           NanThrowError("NaClLauncherWrapper:Invoke: string alloc problem");
         }
-        printf ("rpc string arg: %s\n", arg->arrays.str);
         break;
       default:
         THROW_ERROR_PRINTF("NaClLauncherWrapper:Invoke: SRPC method requires unsupported argument type %c", type);
@@ -333,9 +328,6 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
     }
     i++;
   }
-
-  printf ("NaClSrpcInvokeV\n"); 
-  fflush(stdout);
 
   //Isolate::GetCurrent()->Exit();
   NanUnlocker();
