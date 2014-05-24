@@ -1,5 +1,5 @@
-var SegfaultHandler = require('segfault-handler');
-SegfaultHandler.registerHandler();
+//var SegfaultHandler = require('segfault-handler');
+//SegfaultHandler.registerHandler();
 
 var binding = require('bindings')('sel_ldr_proxy.node'),
     NaClLauncherWrapper = binding.NaClLauncherWrapper;
@@ -27,7 +27,7 @@ function request_account_txs (err, result) {
   if (err) {
     console.log(err);
   } else {
-    
+
     /* Get account transactions from the specified account. */    
     remote.request_account_tx({
       account: result.account,
