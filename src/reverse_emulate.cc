@@ -7,10 +7,12 @@
 
 using namespace v8;
 
-ReverseEmulate::ReverseEmulate(NanCallback *ledger_entry_callback,
+ReverseEmulate::ReverseEmulate(NanCallback *request_account_txs,
+                               NanCallback *submit_payment_tx,
                                Isolate *isolate,
                                v8::Persistent<v8::Context> context) : 
-    ledger_entry_callback_(ledger_entry_callback),
+    request_account_txs_(request_account_txs),
+    submit_payment_tx_(submit_payment_tx),
     isolate_(isolate),
     context_(context) {
   NaClLog(1, "ReverseEmulate::ReverseEmulate\n");
@@ -58,7 +60,7 @@ void ReverseEmulate::DoPostMessage(nacl::string message) {
 bool ReverseEmulate::ReadRippleLedger(nacl::string ledger_hash,
                                       nacl::string* ledger_data) {
   NaClLog(1, "ReverseEmulate::ReadRippleLedger (ledger_hash=%s)\n", ledger_hash.c_str());
-  if (ledger_hash.empty() && 0) {
+  if (ledger_hash.empty()) {
     NaClLog(LOG_ERROR,
             "ReverseEmulate::ReadRippleLedger:"
             " missing ledger_hash\n");
@@ -70,18 +72,75 @@ bool ReverseEmulate::ReadRippleLedger(nacl::string ledger_hash,
   HandleScope handle_scope;
   Context::Scope context_scope(context_);
 
-  if (ledger_entry_callback_!=NULL) {
+  if (request_account_txs_!=NULL) {
     Local<Value> argv[] = {
       Local<Value>::New(Null()),
       String::New(ledger_hash.c_str())
     };
-    ledger_entry_callback_->Call(2, argv); 
+    request_account_txs_->Call(2, argv); 
   }
   
   *ledger_data = "Hello Ripple Ledger!";
   return true;
 }
 
-void ReverseEmulate::RippleLedgerEntry(nacl::string ledger_hash) {
-  NaClLog(1, "ReverseEmulate::RippleLedgerEntry (ledger_hash=%s)\n", ledger_hash.c_str());
+void ReverseEmulate::GetRippleAccountTxs(nacl::string account,
+                                         nacl::string ledger_index) {
+  NaClLog(1, "ReverseEmulate::GetRippleAccountTxs\n");
+  if (account.empty() || ledger_index.empty()) {
+    NaClLog(LOG_ERROR,
+            "ReverseEmulate::GetRippleAccountTxs:"
+            " missing data\n");
+    return;
+  }
+
+  Locker v8Locker(isolate_);
+  Isolate::Scope isolateScope(isolate_);
+  HandleScope handle_scope;
+  Context::Scope context_scope(context_);
+
+  Local<Object> result = Object::New();
+  result->Set (String::New("account"), String::New(account.c_str()));
+  result->Set (String::New("ledger_index"), String::New(ledger_index.c_str()));
+  if (request_account_txs_!=NULL) {
+    Local<Value> argv[] = {
+      Local<Value>::New(Null()),
+      result
+    };
+    request_account_txs_->Call(2, argv); 
+  }
+}
+
+void ReverseEmulate::SubmitRipplePaymentTx(nacl::string account,
+                                           nacl::string secret,
+                                           nacl::string recipient,
+                                           nacl::string amount,
+                                           nacl::string currency) {
+  NaClLog(1, "ReverseEmulate::SubmitRipplePaymentTx\n");
+  if (account.empty() || secret.empty() || recipient.empty() ||
+      amount.empty() || currency.empty()) {
+    NaClLog(LOG_ERROR,
+            "ReverseEmulate::SubmitRipplePaymentTx:"
+            " missing data\n");
+    return;
+  }
+
+  Locker v8Locker(isolate_);
+  Isolate::Scope isolateScope(isolate_);
+  HandleScope handle_scope;
+  Context::Scope context_scope(context_);
+
+  Local<Object> result = Object::New();
+  result->Set (String::New("account"),   String::New(account.c_str()));
+  result->Set (String::New("secret"),    String::New(secret.c_str()));
+  result->Set (String::New("recipient"), String::New(recipient.c_str()));
+  result->Set (String::New("amount"),    String::New(amount.c_str()));
+  result->Set (String::New("currency"),  String::New(currency.c_str()));
+  if (submit_payment_tx_!=NULL) {
+    Local<Value> argv[] = {
+      Local<Value>::New(Null()),
+      result
+    };
+    submit_payment_tx_->Call(2, argv); 
+  }
 }

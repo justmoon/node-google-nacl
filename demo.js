@@ -1,11 +1,12 @@
-//var SegfaultHandler = require('segfault-handler');
-//SegfaultHandler.registerHandler();
+var SegfaultHandler = require('segfault-handler');
+SegfaultHandler.registerHandler();
 
 var binding = require('bindings')('sel_ldr_proxy.node'),
     NaClLauncherWrapper = binding.NaClLauncherWrapper;
 
 /* Loading ripple-lib with Node.js */
 var Remote = require('ripple-lib').Remote;
+var Amount = require('ripple-lib').Amount;
 
 var remote = new Remote({
   trusted:        true,
@@ -21,26 +22,83 @@ var remote = new Remote({
   ]
 });
 
-function ledger_entry_callback (err, result) {
+
+function request_account_txs (err, result) {
   if (err) {
     console.log(err);
   } else {
-    console.log(result);
-    //Get ledger data then call back into the app channel.
+    
+    /* Get account transactions from the specified account. */    
+    remote.request_account_tx({
+      account: result.account,
+      ledger_index_min: result.ledger_index,
+      ledger_index_max: result.ledger_index
+    }, function(err, res) {
+      if (err) {
+        console.log(err);
+      } else {
+        if (res.transactions) {
+          for (var i=0; i<res.transactions.length; i++) {
+            if (res.transactions[i].tx) {
+              if (res.transactions[i].tx.TransactionType &&
+                  res.transactions[i].tx.TransactionType=='Payment') {
+                console.log(res.transactions[i].tx);
+                console.log(JSON.stringify(res.transactions[i].tx));
+                launcher.invoke(NaClLauncherWrapper.CHANNEL_APP,
+                                "new_transaction:s:",
+                                JSON.stringify(res.transactions[i].tx));
+              }
+            }
+          }
+        } else {
+          console.log("Missing transaction(s):");
+          console.log(res);
+        }
+      }
+    });
+  }
+};
+
+
+function submit_payment_tx (err, result) {
+  if (err) {
+    console.log(err);
+  } else {
+    remote.set_secret(result.account, result.secret);
+    var transaction = remote.transaction();
+    var amount = Amount.from_human(result.amount);
+    transaction.payment({
+      from: result.account,
+      to: result.recipient,
+      amount: amount
+    });
+
+    transaction.submit(function(err, result) {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log(result);
+      }
+    });
   }
 }
 
+
 function ledgerListener (ledger_data) {
-  console.log(ledger_data);
-  
-  var launcher = new NaClLauncherWrapper("read_ledger.nexe");
-  launcher.setupReverseService(ledger_entry_callback);
-  launcher.start();
-  launcher.setupAppChannel();
-  launcher.invoke(NaClLauncherWrapper.CHANNEL_APP, "new_ledger:s:", ledger_data.ledger_hash);
+  console.log (ledger_data.ledger_index);
+
+  /* Inform the nexe of a new closed ledger. */
+  launcher.invoke(NaClLauncherWrapper.CHANNEL_APP, "new_ledger:ss:", ledger_data.ledger_hash, ledger_data.ledger_index.toString());
 }
 
+
+var launcher = new NaClLauncherWrapper("contract.nexe");
+launcher.setupReverseService(request_account_txs, submit_payment_tx);
+launcher.start();
+launcher.setupAppChannel();
+
 remote.connect(function() {
-  /* remote connected */
+  console.log ("Connected")
+
   remote.on('ledger_closed', ledgerListener);
 });

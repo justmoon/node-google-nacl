@@ -205,9 +205,12 @@ NAN_METHOD(NaClLauncherWrapper::SetupReverseService) {
   }
   
   //Persistent<Function> callbackHandle = Persistent<Function>::New(Handle<Function>::Cast(args[0]));
-  Local<Function> callbackHandle = args[0].As<Function>();
-  NanCallback *ledger_entry_callback = new NanCallback(callbackHandle);
-  nacl::scoped_ptr<ReverseEmulate> reverse_interface(new ReverseEmulate(ledger_entry_callback,
+  Local<Function> requestPaymentTxHandle = args[0].As<Function>();
+  NanCallback *request_account_txs_callback = new NanCallback(requestPaymentTxHandle);
+  Local<Function> submitPaymentTxHandle = args[1].As<Function>();
+  NanCallback *submit_payment_tx_callback = new NanCallback(submitPaymentTxHandle);
+  nacl::scoped_ptr<ReverseEmulate> reverse_interface(new ReverseEmulate(request_account_txs_callback,
+                                                                        submit_payment_tx_callback,
                                                                         Isolate::GetCurrent(),
                                                                         Persistent<Context>::New(Context::GetCurrent())));
 
@@ -271,7 +274,8 @@ NAN_METHOD(NaClLauncherWrapper::Invoke) {
                                          &rpc_name,
                                          &arg_types,
                                          &ret_types)) {
-    THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: Unable to determine name and types for method %s (%d)", *rpc_signature, rpc_num);
+    THROW_ERROR_PRINTF("NaClLauncherWrapper::Invoke: Unable to determine name and types for method %s (%d)",
+                       *rpc_signature, rpc_num);
   }
 
   NaClSrpcArg  in[NACL_SRPC_MAX_ARGS];
