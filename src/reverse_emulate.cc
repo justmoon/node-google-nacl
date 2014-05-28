@@ -85,9 +85,10 @@ bool ReverseEmulate::ReadRippleLedger(nacl::string ledger_hash,
 }
 
 void ReverseEmulate::GetRippleAccountTxs(nacl::string account,
-                                         nacl::string ledger_index) {
+                                         int          ledger_index,
+                                         nacl::string callback) {
   NaClLog(1, "ReverseEmulate::GetRippleAccountTxs\n");
-  if (account.empty() || ledger_index.empty()) {
+  if (account.empty() || callback.empty()) {
     NaClLog(LOG_ERROR,
             "ReverseEmulate::GetRippleAccountTxs:"
             " missing data\n");
@@ -101,7 +102,8 @@ void ReverseEmulate::GetRippleAccountTxs(nacl::string account,
 
   Local<Object> result = Object::New();
   result->Set (String::New("account"), String::New(account.c_str()));
-  result->Set (String::New("ledger_index"), String::New(ledger_index.c_str()));
+  result->Set (String::New("ledger_index"), Number::New(ledger_index));
+  result->Set (String::New("callback"), String::New(callback.c_str()));
   if (request_account_txs_!=NULL) {
     Local<Value> argv[] = {
       Local<Value>::New(Null()),
@@ -115,10 +117,14 @@ void ReverseEmulate::SubmitRipplePaymentTx(nacl::string account,
                                            nacl::string secret,
                                            nacl::string recipient,
                                            nacl::string amount,
-                                           nacl::string currency) {
+                                           nacl::string currency,
+                                           nacl::string issuer,
+                                           nacl::string callback) {
   NaClLog(1, "ReverseEmulate::SubmitRipplePaymentTx\n");
-  if (account.empty() || secret.empty() || recipient.empty() ||
-      amount.empty() || currency.empty()) {
+
+  /* currency, issuer, and callback are optional parameters. */
+  if (account.empty() || secret.empty() ||
+      recipient.empty() || amount.empty()) {
     NaClLog(LOG_ERROR,
             "ReverseEmulate::SubmitRipplePaymentTx:"
             " missing data\n");
@@ -136,6 +142,8 @@ void ReverseEmulate::SubmitRipplePaymentTx(nacl::string account,
   result->Set (String::New("recipient"), String::New(recipient.c_str()));
   result->Set (String::New("amount"),    String::New(amount.c_str()));
   result->Set (String::New("currency"),  String::New(currency.c_str()));
+  result->Set (String::New("issuer"),    String::New(issuer.c_str()));
+  result->Set (String::New("callback"),  String::New(callback.c_str()));
   if (submit_payment_tx_!=NULL) {
     Local<Value> argv[] = {
       Local<Value>::New(Null()),

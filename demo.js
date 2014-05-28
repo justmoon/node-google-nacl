@@ -36,22 +36,18 @@ function request_account_txs (err, result) {
     }, function(err, res) {
       if (err) {
         console.log(err);
-      } else {
+      } else {        
         if (res.transactions) {
           for (var i=0; i<res.transactions.length; i++) {
+            console.log(res.transactions[i].tx);
             if (res.transactions[i].tx) {
-              if (res.transactions[i].tx.TransactionType &&
-                  res.transactions[i].tx.TransactionType=='Payment') {
-                console.log(res.transactions[i].tx);
-                console.log(JSON.stringify(res.transactions[i].tx));
-                launcher.invoke(NaClLauncherWrapper.CHANNEL_APP,
-                                "new_transaction:s:",
-                                JSON.stringify(res.transactions[i].tx));
-              }
+              launcher.invoke(NaClLauncherWrapper.CHANNEL_APP,
+                              result.callback,
+                              JSON.stringify(res.transactions[i].tx));
             }
           }
         } else {
-          console.log("Missing transaction(s):");
+          console.log('Missing transaction(s):');
           console.log(res);
         }
       }
@@ -66,7 +62,19 @@ function submit_payment_tx (err, result) {
   } else {
     remote.set_secret(result.account, result.secret);
     var transaction = remote.transaction();
-    var amount = Amount.from_human(result.amount);
+    var amount;
+    if (result.currency) {
+      amount = new Amount.from_json({
+        'value': result.amount,
+        'currency': result.currency,
+        'issuer': result.issuer
+      });
+
+    } else {
+      /* XRP payment */
+      amount = result.amount;
+    }
+
     transaction.payment({
       from: result.account,
       to: result.recipient,
@@ -88,17 +96,17 @@ function ledgerListener (ledger_data) {
   console.log (ledger_data.ledger_index);
 
   /* Inform the nexe of a new closed ledger. */
-  launcher.invoke(NaClLauncherWrapper.CHANNEL_APP, "new_ledger:ss:", ledger_data.ledger_hash, ledger_data.ledger_index.toString());
+  launcher.invoke(NaClLauncherWrapper.CHANNEL_APP, 'new_ledger:s:', JSON.stringify(ledger_data));
 }
 
 
-var launcher = new NaClLauncherWrapper("contract.nexe");
+var launcher = new NaClLauncherWrapper('contract.nexe');
 launcher.setupReverseService(request_account_txs, submit_payment_tx);
 launcher.start();
 launcher.setupAppChannel();
 
 remote.connect(function() {
-  console.log ("Connected")
+  console.log ('Connected')
 
   remote.on('ledger_closed', ledgerListener);
 });
