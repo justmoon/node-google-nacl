@@ -35,7 +35,8 @@ public:
 
   // Request Ripple account transactions from specified ledger.
   virtual void GetRippleAccountTxs(nacl::string account,
-                                   int          ledger_index,
+                                   int          ledger_index_min,
+                                   int          ledger_index_max,
                                    nacl::string callback);
 
   // Submit Ripple payment transaction.

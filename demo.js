@@ -31,21 +31,16 @@ function request_account_txs (err, result) {
     /* Get account transactions from the specified account. */    
     remote.request_account_tx({
       account: result.account,
-      ledger_index_min: result.ledger_index,
-      ledger_index_max: result.ledger_index
+      ledger_index_min: result.ledger_index_min,
+      ledger_index_max: result.ledger_index_max
     }, function(err, res) {
       if (err) {
         console.log(err);
       } else {        
         if (res.transactions) {
-          for (var i=0; i<res.transactions.length; i++) {
-            console.log(res.transactions[i].tx);
-            if (res.transactions[i].tx) {
-              launcher.invoke(NaClLauncherWrapper.CHANNEL_APP,
+          launcher.invoke(NaClLauncherWrapper.CHANNEL_APP,
                               result.callback,
-                              JSON.stringify(res.transactions[i].tx));
-            }
-          }
+                              JSON.stringify(res.transactions));
         } else {
           console.log('Missing transaction(s):');
           console.log(res);
@@ -93,7 +88,7 @@ function submit_payment_tx (err, result) {
 
 
 function ledgerListener (ledger_data) {
-  console.log (ledger_data.ledger_index);
+  console.log ("%d (%s)", ledger_data.ledger_index, ledger_data.ledger_time);
 
   /* Inform the nexe of a new closed ledger. */
   launcher.invoke(NaClLauncherWrapper.CHANNEL_APP, 'new_ledger:s:', JSON.stringify(ledger_data));
@@ -101,6 +96,7 @@ function ledgerListener (ledger_data) {
 
 
 var launcher = new NaClLauncherWrapper('contract.nexe');
+//var launcher = new NaClLauncherWrapper('kickstarter.nexe');
 launcher.setupReverseService(request_account_txs, submit_payment_tx);
 launcher.start();
 launcher.setupAppChannel();

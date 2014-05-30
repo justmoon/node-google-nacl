@@ -85,7 +85,8 @@ bool ReverseEmulate::ReadRippleLedger(nacl::string ledger_hash,
 }
 
 void ReverseEmulate::GetRippleAccountTxs(nacl::string account,
-                                         int          ledger_index,
+                                         int          ledger_index_min,
+                                         int          ledger_index_max,
                                          nacl::string callback) {
   NaClLog(1, "ReverseEmulate::GetRippleAccountTxs\n");
   if (account.empty() || callback.empty()) {
@@ -102,7 +103,8 @@ void ReverseEmulate::GetRippleAccountTxs(nacl::string account,
 
   Local<Object> result = Object::New();
   result->Set (String::New("account"), String::New(account.c_str()));
-  result->Set (String::New("ledger_index"), Number::New(ledger_index));
+  result->Set (String::New("ledger_index_min"), Number::New(ledger_index_min));
+  result->Set (String::New("ledger_index_max"), Number::New(ledger_index_max));
   result->Set (String::New("callback"), String::New(callback.c_str()));
   if (request_account_txs_!=NULL) {
     Local<Value> argv[] = {
