@@ -57,33 +57,6 @@ void ReverseEmulate::DoPostMessage(nacl::string message) {
   NaClLog(1, "ReverseEmulate::DoPostMessage (message=%s)\n", message.c_str());
 }
 
-bool ReverseEmulate::ReadRippleLedger(nacl::string ledger_hash,
-                                      nacl::string* ledger_data) {
-  NaClLog(1, "ReverseEmulate::ReadRippleLedger (ledger_hash=%s)\n", ledger_hash.c_str());
-  if (ledger_hash.empty()) {
-    NaClLog(LOG_ERROR,
-            "ReverseEmulate::ReadRippleLedger:"
-            " missing ledger_hash\n");
-    return false;
-  }
-
-  Locker v8Locker(isolate_);
-  Isolate::Scope isolateScope(isolate_);
-  HandleScope handle_scope;
-  Context::Scope context_scope(context_);
-
-  if (request_account_txs_!=NULL) {
-    Local<Value> argv[] = {
-      Local<Value>::New(Null()),
-      String::New(ledger_hash.c_str())
-    };
-    request_account_txs_->Call(2, argv); 
-  }
-  
-  *ledger_data = "Hello Ripple Ledger!";
-  return true;
-}
-
 void ReverseEmulate::GetRippleAccountTxs(nacl::string account,
                                          int          ledger_index_min,
                                          int          ledger_index_max,

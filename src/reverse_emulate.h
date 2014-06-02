@@ -29,10 +29,6 @@ public:
   // Send a string as a PostMessage to the browser.
   virtual void DoPostMessage(nacl::string message);
 
-  // Read Ripple ledger.
-  virtual bool ReadRippleLedger(nacl::string ledger_hash,
-                                nacl::string* ledger_data);
-
   // Request Ripple account transactions from specified ledger.
   virtual void GetRippleAccountTxs(nacl::string account,
                                    int          ledger_index_min,
